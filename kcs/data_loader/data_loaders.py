@@ -1,9 +1,12 @@
+import sys, os
+sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
+
 import pandas as pd
 from os.path import join
 from torchvision import datasets, transforms
 from base import BaseDataLoader
 from torch.utils.data import Dataset
-from kcs.utils import *
+from utils.util import *
 
 
 class MolculeDataLoader(BaseDataLoader):
