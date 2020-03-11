@@ -27,7 +27,7 @@ class MolculeDataLoader(BaseDataLoader):
 class gcnDataset(Dataset):
     def __init__(self, data_dir, LIST_SYMBOLS, training, MAX_LEN=120):
         if training:
-            data_dir = join(data_dir, 'train_.csv')
+            data_dir = join(data_dir, 'train.csv')
         else:
             data_dir = join(data_dir, 'valid_.csv')
 
