@@ -86,12 +86,8 @@ def mol2graph(smi, LIST_SYMBOLS, MAX_LEN):
 
     X = np.zeros((MAX_LEN, 5), dtype=np.uint8)
     A = np.zeros((MAX_LEN, MAX_LEN), dtype=np.uint8)
-
-    temp_A = Chem.rdmolops.GetAdjacencyMatrix(mol
-                                             ).astype(np.uint8, copy=False)[:MAX_LEN, :MAX_LEN]
-    num_atom = temp_A.shape[0]
-    eye_matrix = np.eye(temp_A.shape[0], dtype=np.uint8)
-    A[:num_atom, :num_atom] = temp_A + eye_matrix
+    temp_A, num_atom = get_laplacian_mat(mol, MAX_LEN)
+    A[:num_atom, :num_atom] = temp_A
     
     for i, atom in enumerate(mol.GetAtoms()):
         feature = atom_feature(atom, LIST_SYMBOLS)
@@ -99,3 +95,19 @@ def mol2graph(smi, LIST_SYMBOLS, MAX_LEN):
         if i + 1 >= num_atom: break
             
     return X, A
+
+def get_laplacian_mat(mol, MAX_LEN):
+    temp_A = Chem.rdmolops.GetDistanceMatrix(mol
+                                            ).astype(np.uint8, copy=False)[:MAX_LEN, :MAX_LEN]
+    num_atom = temp_A.shape[0]
+    LP_M = np.diag(np.sum(temp_A, axis=1)) - temp_A
+    
+    return LP_M, num_atom
+
+def get_adjacent_mat(mol, MAX_LEN):
+    temp_A = Chem.rdmolops.GetAdjacencyMatrix(mol
+                                             ).astype(np.uint8, copy=False)[:MAX_LEN, :MAX_LEN]
+    num_atom = temp_A.shape[0]
+    eye_matrix = np.eye(temp_A.shape[0], dtype=np.uint8)
+    
+    return temp_A + eye_matrix, num_atom
