@@ -36,4 +36,4 @@ def f1_score(output, target):
         f1 = 2 * (precision * recall) / (precision + recall + epsilon)
         f1 = f1.clamp(min=epsilon, max=1 - epsilon)
 
-        return 1 - f1.mean()
+        return f1.mean()
