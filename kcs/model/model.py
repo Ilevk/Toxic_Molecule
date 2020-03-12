@@ -40,6 +40,9 @@ class GCNNet(BaseModel):
         self.fc1 = nn.Linear(molvec_dim, molvec_dim // 2)
         self.fc2 = nn.Linear(molvec_dim // 2, molvec_dim // 2)
         self.fc3 = nn.Linear(molvec_dim // 2, 2)
+        self.bn1 = BN1d(molvec_dim, use_bn)
+        self.bn2 = BN1d(molvec_dim // 2, use_bn)
+        self.bn3 = BN1d(molvec_dim // 2, use_bn)
         self.dp  = nn.Dropout(drop_rate)
         self.sigmoid = nn.Sigmoid()
 
@@ -70,11 +73,14 @@ class GCNNet(BaseModel):
         for i, module in enumerate(self.gcn_layers):
             x, A = module(x, A)
         x = self.readout(x)
-
+        
+        x = self.bn1(x)
         x = self.act(self.fc1(x))
         x = self.dp(x)
+        x = self.bn2(x)
         x = self.act(self.fc2(x))
         x = self.dp(x)
+        x = self.bn3(x)
         x = self.fc3(x)
         return torch.squeeze(x)
 
