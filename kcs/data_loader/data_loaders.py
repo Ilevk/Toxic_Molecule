@@ -34,7 +34,10 @@ class gcnDataset(Dataset):
         df = pd.read_csv(join(data_dir))
         self.smiles = df["SMILES"]
         self.exp = df["label"].values
-
+        self.mlp1_x = np.concatenate([df.iloc[:, 1:1025].values,    df.iloc[:, -5:-1].values], axis=1)
+        self.mlp2_x = np.concatenate([df.iloc[:, 1025:2049].values, df.iloc[:, -5:-1].values], axis=1)
+        self.mlp3_x = np.concatenate([df.iloc[:, 2049:-5].values,   df.iloc[:, -5:-1].values], axis=1)
+        
         list_X = list()
         list_A = list()
 
@@ -50,6 +53,6 @@ class gcnDataset(Dataset):
         return len(self.X)
 
     def __getitem__(self, index):
-        return (self.X[index], self.A[index]), self.exp[index]
+        return (self.X[index], self.A[index]), self.exp[index], self.mlp1_x[index], self.mlp2_x[index], self.mlp3_x[index]
 
 

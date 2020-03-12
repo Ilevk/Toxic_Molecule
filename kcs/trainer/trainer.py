@@ -38,11 +38,16 @@ class Trainer(BaseTrainer):
         """
         self.model.train()
         self.train_metrics.reset()
-        for batch_idx, (data, target) in enumerate(self.data_loader):
-            X, A, target = data[0].to(self.device), data[1].to(self.device), target.to(self.device)
+        for batch_idx, (data, target, mlp1, mlp2, mlp3) in enumerate(self.data_loader):
+            X, A, target, mlp1, mlp2, mlp3 = data[0].to(self.device), \
+                                             data[1].to(self.device), \
+                                             target.to(self.device), \
+                                             mlp1.to(self.device).float(), \
+                                             mlp2.to(self.device).float(), \
+                                             mlp3.to(self.device).float(), \
 
             self.optimizer.zero_grad()
-            output = self.model(X, A)
+            output = self.model(X, A, mlp1, mlp2, mlp3)
             loss = self.criterion(output, target)
             loss.backward()
             self.optimizer.step()
@@ -82,10 +87,15 @@ class Trainer(BaseTrainer):
         self.model.eval()
         self.valid_metrics.reset()
         with torch.no_grad():
-            for batch_idx, (data, target) in enumerate(self.valid_data_loader):
-                X, A, target = data[0].to(self.device), data[1].to(self.device), target.to(self.device)
+            for batch_idx, (data, target, mlp1, mlp2, mlp3) in enumerate(self.valid_data_loader):
+                X, A, target, mlp1, mlp2, mlp3 = data[0].to(self.device), \
+                                                 data[1].to(self.device), \
+                                                 target.to(self.device), \
+                                                 mlp1.to(self.device).float(), \
+                                                 mlp2.to(self.device).float(), \
+                                                 mlp3.to(self.device).float(), \
 
-                output = self.model(X, A)
+                output = self.model(X, A, mlp1, mlp2, mlp3)
                 loss = self.criterion(output, target)
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')

@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from base import BaseModel
 
+
 class GCNNet(BaseModel):
 
     def __init__(self,
@@ -11,31 +12,34 @@ class GCNNet(BaseModel):
                  molvec_dim,
                  n_layer,
                  use_bn,
-                 act,
+                 gcn_activation,
+                 mlp_activation,
                  drop_rate,
                  vocab_size,
                  degree_size,
                  numH_size,
                  valence_size,
                  isarom_size,
-                 emb_train):
+                 emb_train,
+                 mlp_dims):
         super(GCNNet, self).__init__()
 
         # Create Atom Element embedding layer
         self.embedding = self.create_emb_layer([vocab_size, degree_size,
                                                 numH_size, valence_size,
                                                 isarom_size], emb_train)
-        self.act = self.select_activation(act)
-
+        self.gcn_act = self.select_activation(gcn_activation)
+        self.mlp_act = self.select_activation(mlp_activation)
+        
         self.gcn_layers = nn.ModuleList()
         for i in range(n_layer):
             self.gcn_layers.append(GConv(in_dim if i == 0 else out_dim,
                                          out_dim,
                                          use_bn,
-                                         self.act,
+                                         self.gcn_act,
                                          drop_rate))
 
-        self.readout = Readout(out_dim, molvec_dim)
+        self.readout = Readout(out_dim, molvec_dim//4)
 
         self.fc1 = nn.Linear(molvec_dim, molvec_dim // 2)
         self.fc2 = nn.Linear(molvec_dim // 2, molvec_dim // 2)
@@ -44,8 +48,11 @@ class GCNNet(BaseModel):
         self.bn2 = BN1d(molvec_dim // 2, use_bn)
         self.bn3 = BN1d(molvec_dim // 2, use_bn)
         self.dp  = nn.Dropout(drop_rate)
-        self.sigmoid = nn.Sigmoid()
-
+        
+        self.MLP1 = MLP(mlp_dims, self.mlp_act, drop_rate)
+        self.MLP2 = MLP(mlp_dims, self.mlp_act, drop_rate)
+        self.MLP3 = MLP(mlp_dims, self.mlp_act, drop_rate)
+        
     def create_emb_layer(self, list_vocab_size, emb_train=False):
         list_emb_layer = nn.ModuleList()
         for i, vocab_size in enumerate(list_vocab_size):
@@ -66,22 +73,32 @@ class GCNNet(BaseModel):
         x = torch.cat(list_embed, 2)
         return x
 
-    def forward(self, x, A):
+    def forward(self, x, A, m1_x, m2_x, m3_x):
+        
+        # GCN
         A = A.float()
         x = self._embed(x)
 
         for i, module in enumerate(self.gcn_layers):
             x, A = module(x, A)
-        x = self.readout(x)
+        gcn_x = self.readout(x)
         
-        x = self.bn1(x)
-        x = self.act(self.fc1(x))
+        # MLP
+        mlp1_x = self.MLP1(m1_x)
+        mlp2_x = self.MLP2(m2_x)
+        mlp3_x = self.MLP3(m3_x)
+        
+        x = torch.cat((gcn_x, mlp1_x, mlp2_x, mlp3_x), dim=1)
+        
+#         x = self.bn1(x)
+        x = self.mlp_act(self.fc1(x))
         x = self.dp(x)
         x = self.bn2(x)
-        x = self.act(self.fc2(x))
+        x = self.mlp_act(self.fc2(x))
         x = self.dp(x)
         x = self.bn3(x)
         x = self.fc3(x)
+        
         return torch.squeeze(x)
 
     def select_activation(self, act):
@@ -136,3 +153,36 @@ class Readout(nn.Module):
         molvec = self.readout_fc(output_H)
         molvec = torch.mean(molvec, dim=1)
         return molvec
+    
+
+class MLP(nn.Module):
+    def __init__(self, mlp_dims, mlp_act, drop_rate):
+        super(MLP, self).__init__()
+        
+        self.layer1 = nn.Sequential(
+            nn.Linear(mlp_dims[0], mlp_dims[1]),
+            nn.BatchNorm1d(mlp_dims[1]),
+            mlp_act,
+            nn.Dropout(p=drop_rate)
+            )
+
+        self.layer2 = nn.Sequential(
+            nn.Linear(mlp_dims[1], mlp_dims[2]),
+            nn.BatchNorm1d(mlp_dims[2]),
+            mlp_act,
+            nn.Dropout(p=drop_rate)
+            )
+
+        self.layer3 = nn.Sequential(
+            nn.Linear(mlp_dims[2], mlp_dims[3]),
+            nn.BatchNorm1d(mlp_dims[3]),
+            mlp_act,
+            nn.Dropout(p=drop_rate)
+            )
+
+    def forward(self, x):
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        
+        return x
