@@ -13,19 +13,19 @@ class MolculeDataLoader(BaseDataLoader):
     """
     MNIST data loading demo using BaseDataLoader
     """
-    def __init__(self, data_dir, batch_size, shuffle=True, validation_split=0.0, num_workers=1, training=True):
+    def __init__(self, data_dir, batch_size, matrix, shuffle=True, validation_split=0.0, num_workers=1, training=True):
         self.data_dir = data_dir
 
         self.total = pd.read_csv(join(data_dir, 'train.csv'))
-        self.MAX_LEN =max(self.total['SMILES'].apply(lambda x: get_num_atom(x)))
+        self.MAX_LEN = max(self.total['SMILES'].apply(lambda x: get_num_atom(x)))
         self.LIST_SYMBOLS =list(set.union(*self.total['SMILES'].apply(lambda x: get_unique_atom_symbols(x)).values))
 
-        self.dataset = gcnDataset(self.data_dir, self.LIST_SYMBOLS, training, self.MAX_LEN)
+        self.dataset = gcnDataset(self.data_dir, self.LIST_SYMBOLS, training, self.MAX_LEN, matrix)
         super().__init__(self.dataset, batch_size, shuffle, validation_split, num_workers)
 
 
 class gcnDataset(Dataset):
-    def __init__(self, data_dir, LIST_SYMBOLS, training, MAX_LEN=120):
+    def __init__(self, data_dir, LIST_SYMBOLS, training, MAX_LEN=120, matrix='adj'):
         if training:
             data_dir = join(data_dir, 'train.csv')
         else:
@@ -42,7 +42,7 @@ class gcnDataset(Dataset):
         list_A = list()
 
         for i, smiles in enumerate(self.smiles):
-            X, A = mol2graph(smiles, LIST_SYMBOLS, MAX_LEN)
+            X, A = mol2graph(smiles, LIST_SYMBOLS, MAX_LEN, matrix)
             list_X.append(X)
             list_A.append(A)
 
