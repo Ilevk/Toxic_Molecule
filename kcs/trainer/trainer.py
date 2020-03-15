@@ -28,6 +28,9 @@ class Trainer(BaseTrainer):
 
         self.train_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
         self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
+        self.best_valid_metric = 10
+        self.best_val_1 = 0
+        self.best_val_acc = 0
 
     def _train_epoch(self, epoch):
         """
@@ -38,11 +41,16 @@ class Trainer(BaseTrainer):
         """
         self.model.train()
         self.train_metrics.reset()
-        for batch_idx, (data, target) in enumerate(self.data_loader):
-            X, A, target = data[0].to(self.device), data[1].to(self.device), target.to(self.device)
+        for batch_idx, (data, target, mlp1, mlp2, mlp3) in enumerate(self.data_loader):
+            X, A, target, mlp1, mlp2, mlp3 = data[0].to(self.device), \
+                                             data[1].to(self.device), \
+                                             target.to(self.device), \
+                                             mlp1.to(self.device).float(), \
+                                             mlp2.to(self.device).float(), \
+                                             mlp3.to(self.device).float(), \
 
             self.optimizer.zero_grad()
-            output = self.model(X, A)
+            output = self.model(X, A, mlp1, mlp2, mlp3)
             loss = self.criterion(output, target)
             loss.backward()
             self.optimizer.step()
@@ -57,8 +65,6 @@ class Trainer(BaseTrainer):
                     epoch,
                     self._progress(batch_idx),
                     loss.item()))
-                # self.writer. ('X', make_grid(data[0].cpu(), nrow=8, normalize=True))
-                # self.writer.add_image('A', make_grid(data[1].cpu(), nrow=8, normalize=True))
 
             if batch_idx == self.len_epoch:
                 break
@@ -82,18 +88,37 @@ class Trainer(BaseTrainer):
         self.model.eval()
         self.valid_metrics.reset()
         with torch.no_grad():
-            for batch_idx, (data, target) in enumerate(self.valid_data_loader):
-                X, A, target = data[0].to(self.device), data[1].to(self.device), target.to(self.device)
+            outputs = torch.zeros((1, 2)).to(self.device)
+            targets = torch.zeros((1, )).to(self.device).long()
+            for batch_idx, (data, target, mlp1, mlp2, mlp3) in enumerate(self.valid_data_loader):
+                X, A, target, mlp1, mlp2, mlp3 = data[0].to(self.device), \
+                                                 data[1].to(self.device), \
+                                                 target.to(self.device), \
+                                                 mlp1.to(self.device).float(), \
+                                                 mlp2.to(self.device).float(), \
+                                                 mlp3.to(self.device).float(), \
 
-                output = self.model(X, A)
+                output = self.model(X, A, mlp1, mlp2, mlp3)
                 loss = self.criterion(output, target)
-
+                
+                outputs = torch.cat([outputs, output], dim=0)
+                targets = torch.cat([targets, target.long()], dim=0)
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                 self.valid_metrics.update('loss', loss.item())
                 for met in self.metric_ftns:
                     self.valid_metrics.update(met.__name__, met(output, target))
-                #self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
-
+            val_acc = self.metric_ftns[0](outputs[1:, :], targets[1:])
+            val_f1  = self.metric_ftns[1](outputs[1:, :], targets[1:])
+            val_loss = self.criterion(outputs[1:, :], targets[1:])
+            
+            if val_loss < self.best_valid_metric:
+                self.best_valid_metric = val_loss.item()
+                self.best_val_1 = val_f1
+                self.best_val_acc = val_acc
+            self.logger.info('------------------------------------')
+            self.logger.info(f'Current Best val_f1: {self.best_val_1}, val_acc: {self.best_val_acc}, val_loss(F1_BCE): {self.best_valid_metric}')
+            self.logger.info('------------------------------------')
+            
         # add histogram of model parameters to the tensorboard
         for name, p in self.model.named_parameters():
             self.writer.add_histogram(name, p, bins='auto')
