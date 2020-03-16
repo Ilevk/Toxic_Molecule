@@ -104,12 +104,15 @@ class Trainer(BaseTrainer):
                 outputs = torch.cat([outputs, output], dim=0)
                 targets = torch.cat([targets, target.long()], dim=0)
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
-                self.valid_metrics.update('loss', loss.item())
-                for met in self.metric_ftns:
-                    self.valid_metrics.update(met.__name__, met(output, target))
             val_acc = self.metric_ftns[0](outputs[1:, :], targets[1:])
             val_f1  = self.metric_ftns[1](outputs[1:, :], targets[1:])
             val_loss = self.criterion(outputs[1:, :], targets[1:])
+            
+            
+            
+            self.valid_metrics.update('loss', val_loss)
+            for met in self.metric_ftns:
+                self.valid_metrics.update(met.__name__, met(outputs, targets))
             
             if val_loss < self.best_valid_metric:
                 self.best_valid_metric = val_loss.item()
