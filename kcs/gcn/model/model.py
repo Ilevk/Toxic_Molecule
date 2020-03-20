@@ -42,11 +42,11 @@ class GCNNet(BaseModel):
         self.readout = Readout(out_dim, molvec_dim//4)
 
         self.fc1 = nn.Linear(molvec_dim, molvec_dim // 2)
-        self.fc2 = nn.Linear(molvec_dim // 2, molvec_dim // 4)
-        self.fc3 = nn.Linear(molvec_dim // 4, 2)
+        self.fc2 = nn.Linear(molvec_dim // 2, molvec_dim // 2)
+        self.fc3 = nn.Linear(molvec_dim // 2, 2)
         self.bn1 = BN1d(molvec_dim, use_bn)
         self.bn2 = BN1d(molvec_dim // 2, use_bn)
-        self.bn3 = BN1d(molvec_dim // 4, use_bn)
+        self.bn3 = BN1d(molvec_dim // 2, use_bn)
         self.dp  = nn.Dropout(drop_rate)
         
         self.MLP1 = MLP(mlp_dims, self.mlp_act, drop_rate)
@@ -90,7 +90,7 @@ class GCNNet(BaseModel):
         
         x = torch.cat((gcn_x, mlp1_x, mlp2_x, mlp3_x), dim=1)
         
-        x = self.bn1(x)
+#         x = self.bn1(x)
         x = self.mlp_act(self.fc1(x))
         x = self.dp(x)
         x = self.bn2(x)
@@ -159,15 +159,30 @@ class MLP(nn.Module):
     def __init__(self, mlp_dims, mlp_act, drop_rate):
         super(MLP, self).__init__()
         
-        layers = [nn.Sequential(nn.Linear(mlp_dims[i], mlp_dims[i+1]),
-                                mlp_act,
-                                nn.BatchNorm1d(mlp_dims[i+1]),
-                                nn.Dropout(p=drop_rate))
-                  for i in range(len(mlp_dims)-1)]
-        
-        self.layers = nn.Sequential(*layers)
+        self.layer1 = nn.Sequential(
+            nn.Linear(mlp_dims[0], mlp_dims[1]),
+            nn.BatchNorm1d(mlp_dims[1]),
+            mlp_act,
+            nn.Dropout(p=drop_rate)
+            )
+
+        self.layer2 = nn.Sequential(
+            nn.Linear(mlp_dims[1], mlp_dims[2]),
+            nn.BatchNorm1d(mlp_dims[2]),
+            mlp_act,
+            nn.Dropout(p=drop_rate)
+            )
+
+        self.layer3 = nn.Sequential(
+            nn.Linear(mlp_dims[2], mlp_dims[3]),
+            nn.BatchNorm1d(mlp_dims[3]),
+            mlp_act,
+            nn.Dropout(p=drop_rate)
+            )
 
     def forward(self, x):
-        x = self.layers(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
         
         return x
