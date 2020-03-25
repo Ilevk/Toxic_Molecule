@@ -1,0 +1,64 @@
+{
+    "name": "Molcule_GCN",
+    "n_gpu": 2,
+
+    "arch": {
+        "type": "GCNNet",
+        "args": {
+            "in_dim" : 64,
+            "out_dim" : 256,
+            "molvec_dim" : 256,
+            "n_layer" : 3,
+            "use_bn" : true,
+            "act" : "relu",
+            "drop_rate" : 0.5,
+            "vocab_size" : 40,
+            "degree_size" : 6,
+            "numH_size" : 5,
+            "valence_size" : 6,
+            "isarom_size" : 2,
+            "emb_train" : true
+        }
+    },
+    "data_loader": {
+        "type": "MolculeDataLoader",
+        "args":{
+            "data_dir": "data/",
+            "batch_size": 4092,
+            "shuffle": true,
+            "validation_split": 0.2,
+            "num_workers": 4,
+            "training": true
+        }
+    },
+    "optimizer": {
+        "type": "AdamW",
+        "args":{
+            "lr": 0.001,
+            "weight_decay": 0.01,
+            "amsgrad": true
+        }
+    },
+    "loss": "F1_BCE_Loss",
+    "metrics": [
+        "accuracy", "f1_score"
+    ],
+    "lr_scheduler": {
+        "type": "ExponentialLR",
+        "args": {
+            "gamma": 0.96
+        }
+    },
+    "trainer": {
+        "epochs": 100000,
+
+        "save_dir": "saved/",
+        "save_period": 1,
+        "verbosity": 1,
+        
+        "monitor": "min val_loss",
+        "early_stop": 200,
+
+        "tensorboard": true
+    }
+}
