@@ -7,3 +7,6 @@
 #### Team members
 - Seongsu Bae, SK Holdings C&C, Github : https://github.com/baeseongsu
 - Cheonseong Kang, SK Holdings C&C, Github : https://github.com/ilevk
+
+#### Reference
+GCN Model: (Standalone-DeepLearning-Chemistry Lec.5)[https://github.com/heartcored98/Standalone-DeepLearning-Chemistry]
